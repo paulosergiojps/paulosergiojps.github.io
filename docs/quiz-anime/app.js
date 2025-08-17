@@ -68,7 +68,7 @@ function setOverlay(show){
 window.onYouTubeIframeAPIReady = function(){
   player = new YT.Player('player', {
     height: '360', width: '640',
-    playerVars: { controls: 0, modestbranding: 1, rel: 0, disablekb: 1, fs: 0, playsinline: 1 },
+    playerVars: { controls: 0, modestbranding: 1, rel: 0, disablekb: 1, fs: 0, playsinline: 1, origin: location.origin },
     events: {
       onReady: function(){
         els.btnStart.disabled = false;
@@ -168,6 +168,13 @@ function applySongs(arr){
   els.btnPlay.disabled = !startUnlocked;
   els.btnReplay.disabled = true;
   els.btnNext.disabled = !startUnlocked;
+
+  if (!playable.length){
+    console.warn('Nenhum item tocável: preencha videoId ou youtubeUrl em songs.json');
+    if (els.feedback) els.feedback.textContent = '⚠️ Nenhum item tocável. Preencha "videoId" ou "youtubeUrl" em songs.json e clique em "Carregar songs.json".';
+  } else {
+    if (els.feedback) els.feedback.textContent = '';
+  }
 }
 
 async function playSnippet(){
