@@ -1,2 +1,258 @@
-<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
-<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz de Músicas de Anime — Só o Som (YouTube apenas)</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#111823; --muted:#8aa0b5; --text:#e6eef6; --accent:#7cc3ff; --accent-2:#9affc3; --danger:#ff7c7c; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;background:radial-gradient(1200px 600px at 10% -10%,#142032,transparent),var(--bg);color:var(--text)}
+    .wrap{max-width:960px;margin:32px auto;padding:0 20px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+    header h1{font-size:clamp(20px,3vw,28px);margin:0;letter-spacing:.2px}
+    header .tag{font-size:12px;color:var(--muted);background:#0e141d;border:1px solid #1b2635;padding:3px 8px;border-radius:999px}
+    .panel{background:linear-gradient(180deg,#0f1622,#0e1520);border:1px solid #1b2635;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .controls{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:720px){.controls{grid-template-columns:1fr 1fr}}
+    .btns{display:flex;flex-wrap:wrap;gap:10px}
+    button{appearance:none;border:1px solid #1b2635;background:#122033;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .05s ease,filter .2s ease,background .2s ease}
+    button:hover{filter:brightness(1.08)}
+    button:active{transform:translateY(1px)}
+    .primary{background:linear-gradient(180deg,#17314f,#132a45);border-color:#1e3a5b}
+    .accent{background:linear-gradient(180deg,#1b3e2b,#153323);border-color:#234a35}
+    .danger{background:linear-gradient(180deg,#3f1b1b,#301414);border-color:#542626}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center}
+    .row label{font-size:13px;color:var(--muted)}
+    input[type="number"],input[type="text"]{width:100%;padding:9px 10px;border-radius:10px;border:1px solid #1b2635;background:#0f1722;color:var(--text)}
+    input[type="checkbox"]{transform:translateY(1px)}
+    .status{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
+    .status strong{color:var(--accent)}
+    .reveal{margin-top:12px;padding:12px;background:#0d1420;border:1px dashed #213149;border-radius:12px;min-height:52px;display:grid;gap:2px}
+    .title{font-size:16px;font-weight:700;letter-spacing:.2px}
+    .subtitle{font-size:13px;color:var(--muted)}
+    details{margin-top:18px}
+    summary{cursor:pointer;user-select:none;color:var(--accent-2);font-weight:700}
+    ol{margin:10px 0 0;padding-left:20px}
+    li{margin:4px 0}
+    #board{width:100%;height:120px;background:#111823;border:1px solid #1b2635;border-radius:12px;display:grid;place-items:center;color:#9fb7cf;font-weight:700;letter-spacing:.3px}
+    .note{font-size:12px;color:#7aa8ff}
+    .warn{font-size:12px;color:#ffb6b6}
+    /* Player invisível */
+    #yt{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Quiz de Músicas de Anime — só o som 🎵</h1>
+      <span class="tag">YouTube apenas (sem bibliotecas)</span>
+    </header>
+
+    <div class="panel">
+      <div class="controls">
+        <div>
+          <div class="btns">
+            <button class="primary" id="startBtn">▶️ Começar</button>
+            <button id="pauseBtn">⏸️ Parar</button>
+            <button id="resumeBtn">▶️ Continuar</button>
+            <button class="accent" id="nextBtn">⏭️ Próxima</button>
+            <button id="revealBtn">👀 Revelar</button>
+            <button class="danger" id="randomPointBtn" title="Ir para um ponto aleatório na mesma faixa">⤴️ Ponto aleatório</button>
+          </div>
+
+          <div class="status">
+            <div>Restantes: <strong id="left">100</strong></div>
+            <div>Modo: <strong>youtube</strong></div>
+          </div>
+
+          <div class="reveal" id="revealBox">
+            <div class="title" id="songTitle">(oculto)</div>
+            <div class="subtitle" id="songSub">—</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="row">
+            <label for="clipLen">Duração do trecho (segundos)</label>
+            <input id="clipLen" type="number" min="5" max="90" step="1" value="20" />
+          </div>
+          <div class="row">
+            <label for="randomStart">Começar em ponto aleatório</label>
+            <input id="randomStart" type="checkbox" checked />
+          </div>
+          <div id="board">Pronto para tocar via YouTube. <span class="note">Se não tocar aqui, baixe este HTML e abra no navegador.</span></div>
+          <div class="warn">Dica: O player só inicia após o seu clique (política de autoplay dos navegadores). Em alguns ambientes sandbox o YouTube pode ser bloqueado.</div>
+        </div>
+      </div>
+
+      <details>
+        <summary>Ver lista de 100 músicas</summary>
+        <ol id="lista"></ol>
+      </details>
+    </div>
+
+    <!-- Player YouTube invisível (sem API externa) -->
+    <iframe id="yt" title="player oculto" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+  </div>
+
+  <script>
+    // =============================
+    // Lista de 100 músicas de animes conhecidos (OP/ED/temas)
+    // =============================
+    const SONGS = [
+      { t: "A Cruel Angel's Thesis", a: "Neon Genesis Evangelion" },
+      { t: "Tank!", a: "Cowboy Bebop" },
+      { t: "Battlecry", a: "Samurai Champloo" },
+      { t: "unravel", a: "Tokyo Ghoul" },
+      { t: "again", a: "Fullmetal Alchemist: Brotherhood" },
+      { t: "Hologram", a: "Fullmetal Alchemist: Brotherhood" },
+      { t: "Golden Time Lover", a: "Fullmetal Alchemist: Brotherhood" },
+      { t: "Period", a: "Fullmetal Alchemist: Brotherhood" },
+      { t: "Guren no Yumiya", a: "Attack on Titan" },
+      { t: "Jiyuu no Tsubasa", a: "Attack on Titan" },
+      { t: "Shinzou wo Sasageyo!", a: "Attack on Titan" },
+      { t: "Red Swan", a: "Attack on Titan" },
+      { t: "The Rumbling", a: "Attack on Titan" },
+      { t: "My War (Boku no Sensou)", a: "Attack on Titan" },
+      { t: "Gurenge", a: "Demon Slayer" },
+      { t: "from the edge", a: "Demon Slayer" },
+      { t: "Homura", a: "Demon Slayer: Mugen Train" },
+      { t: "Zankyou Sanka", a: "Demon Slayer" },
+      { t: "Kaikai Kitan", a: "Jujutsu Kaisen" },
+      { t: "Lost in Paradise", a: "Jujutsu Kaisen" },
+      { t: "VIVID VICE", a: "Jujutsu Kaisen" },
+      { t: "SPECIALZ", a: "Jujutsu Kaisen" },
+      { t: "Ao no Sumika", a: "Jujutsu Kaisen" },
+      { t: "THE HERO!!", a: "One Punch Man" },
+      { t: "Seijaku no Apostle", a: "One Punch Man (S2)" },
+      { t: "the WORLD", a: "Death Note" },
+      { t: "What's up, people?!", a: "Death Note" },
+      { t: "Silhouette", a: "Naruto Shippuden" },
+      { t: "Blue Bird", a: "Naruto Shippuden" },
+      { t: "Sign", a: "Naruto Shippuden" },
+      { t: "Haruka Kanata", a: "Naruto" },
+      { t: "GO!!!", a: "Naruto" },
+      { t: "We Are!", a: "One Piece" },
+      { t: "Hikari e", a: "One Piece" },
+      { t: "Bon Voyage!", a: "One Piece" },
+      { t: "Share the World", a: "One Piece" },
+      { t: "We Go!", a: "One Piece" },
+      { t: "Hands Up!", a: "One Piece" },
+      { t: "Asterisk", a: "Bleach" },
+      { t: "D-tecnoLife", a: "Bleach" },
+      { t: "Ichirin no Hana", a: "Bleach" },
+      { t: "Rolling Star", a: "Bleach" },
+      { t: "After Dark", a: "Bleach" },
+      { t: "Ranbu no Melody", a: "Bleach" },
+      { t: "Velonica", a: "Bleach" },
+      { t: "KICK BACK", a: "Chainsaw Man" },
+      { t: "Inferno", a: "Fire Force" },
+      { t: "CHA-LA HEAD-CHA-LA", a: "Dragon Ball Z" },
+      { t: "Goya no Machiawase", a: "Noragami" },
+      { t: "Kyouran Hey Kids!!", a: "Noragami Aragoto" },
+      { t: "99", a: "Mob Psycho 100" },
+      { t: "99.9", a: "Mob Psycho 100 II" },
+      { t: "1", a: "Mob Psycho 100 III" },
+      { t: "Imagination", a: "Haikyuu!!" },
+      { t: "FLY HIGH!!", a: "Haikyuu!!" },
+      { t: "PHOENIX", a: "Haikyuu!! To the Top" },
+      { t: "Hikaru nara", a: "Your Lie in April" },
+      { t: "History Maker", a: "Yuri!!! on Ice" },
+      { t: "crossing field", a: "Sword Art Online" },
+      { t: "INNOCENCE", a: "Sword Art Online" },
+      { t: "ignite", a: "Sword Art Online II" },
+      { t: "courage", a: "Sword Art Online II" },
+      { t: "ADAMAS", a: "SAO Alicization" },
+      { t: "RESISTER", a: "SAO Alicization" },
+      { t: "The Day", a: "My Hero Academia" },
+      { t: "Peace Sign", a: "My Hero Academia" },
+      { t: "Odd Future", a: "My Hero Academia" },
+      { t: "Chouzetsu Dynamic!", a: "Dragon Ball Super" },
+      { t: "COLORS", a: "Code Geass" },
+      { t: "Kaidoku Funou", a: "Code Geass" },
+      { t: "O2", a: "Code Geass R2" },
+      { t: "WORLD END", a: "Code Geass R2" },
+      { t: "My Dearest", a: "Guilty Crown" },
+      { t: "The Everlasting Guilty Crown", a: "Guilty Crown" },
+      { t: "only my railgun", a: "A Certain Scientific Railgun" },
+      { t: "LEVEL5 -judgelight-", a: "A Certain Scientific Railgun" },
+      { t: "secret base ~Kimi ga Kureta Mono~ (10 years after Ver.)", a: "Anohana" },
+      { t: "ideal white", a: "Fate/stay night: UBW" },
+      { t: "Brave Shine", a: "Fate/stay night: UBW" },
+      { t: "oath sign", a: "Fate/Zero" },
+      { t: "to the beginning", a: "Fate/Zero" },
+      { t: "Kimi no Shiranai Monogatari", a: "Bakemonogatari" },
+      { t: "Ren'ai Circulation", a: "Bakemonogatari" },
+      { t: "Staple Stable", a: "Bakemonogatari" },
+      { t: "Sorairo Days", a: "Tengen Toppa Gurren Lagann" },
+      { t: "God knows...", a: "Haruhi Suzumiya" },
+      { t: "Hare Hare Yukai", a: "Haruhi Suzumiya" },
+      { t: "Lilium", a: "Elfen Lied" },
+      { t: "Flyers", a: "Death Parade" },
+      { t: "KISS OF DEATH", a: "Darling in the Franxx" },
+      { t: "Touch Off", a: "The Promised Neverland" },
+      { t: "Sparkle", a: "Your Name" },
+      { t: "Nandemonaiya", a: "Your Name" },
+      { t: "Sono Chi no Sadame", a: "JoJo's Bizarre Adventure" },
+      { t: "BLOODY STREAM", a: "JoJo's Bizarre Adventure" },
+      { t: "STAND PROUD", a: "JoJo's Bizarre Adventure" },
+      { t: "Crazy Noisy Bizarre Town", a: "JoJo's Bizarre Adventure" },
+      { t: "Fighting Gold", a: "JoJo's Bizarre Adventure" },
+      { t: "STONE OCEAN", a: "JoJo's Bizarre Adventure" },
+      { t: "Kawaki wo Ameku", a: "Domestic Girlfriend" }
+    ];
+
+    // ========= Refs & estado =========
+    const $ = (s)=>document.querySelector(s);
+    const leftEl=$('#left'), titleEl=$('#songTitle'), subEl=$('#songSub');
+    const clipLenEl=$('#clipLen'), randomStartEl=$('#randomStart');
+    const listEl=$('#lista'), iframe=$('#yt'), board=$('#board');
+
+    listEl.innerHTML = SONGS.map((s,i)=>`<li>${i+1}. ${s.t} — ${s.a}</li>`).join('');
+
+    let order=Array.from({length:SONGS.length},(_,i)=>i); shuffle(order);
+    let cursor=0, currentIndex=null, clipTimer=null;
+
+    function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+    const updateLeft=()=>leftEl.textContent=Math.max(0,order.length-cursor);
+    function updateReveal(show=false){ if(!show||currentIndex===null){titleEl.textContent='(oculto)'; subEl.textContent='—';} else { const s=SONGS[currentIndex]; titleEl.textContent=s.t; subEl.textContent=s.a; } }
+
+    const buildYTQuery=s=>`${s.t} ${s.a}`;
+    function buildYTUrl(query,start,end){
+      const base='https://www.youtube-nocookie.com/embed';
+      const p=new URLSearchParams({ listType:'search', list:query, autoplay:'1', controls:'0', rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1', start:String(start)});
+      if(end>start) p.set('end',String(end));
+      return `${base}?${p.toString()}`;
+    }
+    const randomStartGuess=()=>{ const min=10, max=150; return Math.floor(Math.random()*(max-min+1))+min; };
+
+    function stopPlayback(){ clearTimeout(clipTimer); iframe.src='about:blank'; }
+
+    function playSong(index){
+      currentIndex=index; updateReveal(false);
+      const clip=Math.max(5,Math.min(90,parseInt(clipLenEl.value||'20',10)));
+      const s=SONGS[currentIndex]; const start=randomStartGuess(); const end=start+clip;
+      // Tentar garantir autoplay via permissões do iframe
+      iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
+      iframe.src = buildYTUrl(buildYTQuery(s), start, end);
+      clearTimeout(clipTimer); clipTimer=setTimeout(()=>nextSong(), clip*1000+400);
+      board.textContent='Tocando via YouTube… (se não tocar aqui, abra este HTML no navegador)';
+    }
+
+    function pickAndPlay(){ if(cursor>=order.length){ cursor=0; shuffle(order);} const idx=order[cursor++]; updateLeft(); playSong(idx); }
+    function startQuiz(){ cursor=0; shuffle(order); updateLeft(); pickAndPlay(); }
+    function nextSong(){ stopPlayback(); pickAndPlay(); }
+
+    // Controles
+    document.getElementById('startBtn').addEventListener('click', startQuiz);
+    document.getElementById('nextBtn').addEventListener('click', nextSong);
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{ stopPlayback(); board.textContent='Pausado'; });
+    document.getElementById('resumeBtn').addEventListener('click', ()=>{ if(currentIndex==null){ startQuiz(); return;} playSong(currentIndex); });
+    document.getElementById('revealBtn').addEventListener('click', ()=>{ updateReveal(true); board.textContent='Revelado'; });
+    document.getElementById('randomPointBtn').addEventListener('click', ()=>{ if(currentIndex!=null) playSong(currentIndex); });
+
+    updateLeft();
+  </script>
+</body>
+</html>
