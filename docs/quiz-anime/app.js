@@ -117,10 +117,13 @@ async function init(){
   try {
     const base = await fetch('songs.json?_=' + Date.now()).then(function(r){return r.json();});
     applySongs(base);
+    console.log('songs.json loaded on init:', SONGS.length, 'items,', playable.length, 'playable');
   } catch(e){
     console.warn('songs.json not found or invalid, starting with empty list');
     applySongs([]);
   }
+
+  console.log('AMQ app loaded');
 }
 
 function normalizeSongs(arr){
@@ -256,9 +259,7 @@ async function handleImport(e){
 }
 
 function parseCSV(csv){
-  const lines = csv.split(/
-?
-/).filter(Boolean);
+  const lines = csv.split(/\\r?\\n/).filter(Boolean);
   if (!lines.length) return [];
   const hdr = lines.shift().split(',').map(function(h){ return h.trim(); });
   const idx = {
@@ -295,7 +296,10 @@ function exportJSON(){
 function loadFromSongsJson(){
   fetch('songs.json?_=' + Date.now())
     .then(function(r){ return r.json(); })
-    .then(function(data){ applySongs(data); })
+    .then(function(data){ 
+      applySongs(data); 
+      alert('songs.json carregado: ' + SONGS.length + ' itens (' + playable.length + ' tocáveis)');
+    })
     .catch(function(){ alert('Não foi possível carregar songs.json.'); });
 }
 
