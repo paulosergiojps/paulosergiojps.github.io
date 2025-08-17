@@ -158,22 +158,16 @@
     const updateLeft=()=>leftEl.textContent=Math.max(0,order.length-cursor);
     updateLeft();
 
-    const buildQuery = (s)=>`${s.t} ${s.a}`;
+    const makeQuery=(s)=>`${(s.t||'').replace(/[^\w\s]/g,' ')} ${(s.a||'').replace(/[^\w\s]/g,' ')} anime opening`;
     const randomStartGuess=()=>{ const min=10, max=150; return Math.floor(Math.random()*(max-min+1))+min; };
     const secs=(n)=>Math.max(5,Math.min(90,parseInt(n||'20',10)));
 
-    function buildYTUrl(query,start,end,showControls){
+    function buildBaseEmbed(showControls){
       const base='https://www.youtube.com/embed';
       const p=new URLSearchParams({
-        listType:'search', list:query,
-        autoplay:'1',
-        controls: showControls ? '1' : '0',
-        rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1',
-        enablejsapi:'1',
-        origin: location.origin
+        autoplay:'1', controls: showControls ? '1' : '0', rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1',
+        enablejsapi:'1', origin: location.origin
       });
-      if(start) p.set('start', String(start));
-      if(end && end>start) p.set('end', String(end));
       return `${base}?${p.toString()}`;
     }
 
@@ -189,12 +183,10 @@
 
       if (data.event === 'onReady') {
         playerReady = true;
-        // drenar fila com pequeno atraso para garantir inicialização
         setTimeout(()=>{ while(pending.length){ const [f,a]=pending.shift(); send(f,a); } }, 50);
       }
 
       if (data.event === 'infoDelivery' && data.info && typeof data.info.playerState !== 'undefined') {
-        // 1 = playing
         if (data.info.playerState === 1 && iframe.classList.contains('handshake')) {
           iframe.classList.remove('handshake');
           iframe.classList.add('hidden');
@@ -229,18 +221,22 @@
 
       const clip=secs(clipLenEl.value);
       const start=randomStartEl.checked && fresh ? randomStartGuess() : 0;
-      const end=start+clip;
 
-      // no primeiro vídeo, mostramos controles para permitir clique interno
+      // 1) carrega um embed "limpo" (sem search na URL)
       const showControls = !didHandshake;
       iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
-      iframe.src = buildYTUrl(buildQuery(s), start, end, showControls);
+      iframe.src = buildBaseEmbed(showControls);
 
-      if (!didHandshake) showMiniPlayer(); else hidePlayer();
-
-      // Ajuste de volume somente após onReady
+      // 2) quando o player estiver pronto, pedimos para carregar a playlist de busca
+      const q = makeQuery(s);
+      send('loadPlaylist', [{ listType: 'search', list: q }, 0, start]);
+      // volume
       const vol = Math.max(0, Math.min(100, parseInt(volumeEl.value||'70',10)));
       if (vol === 0) send('mute', []); else { send('unMute', []); send('setVolume', [vol]); }
+      // força tocar
+      send('playVideo', []);
+
+      if (!didHandshake) showMiniPlayer(); else hidePlayer();
 
       clearTimeout(clipTimer);
       clipTimer=setTimeout(()=>nextSong(), clip*1000+500);
