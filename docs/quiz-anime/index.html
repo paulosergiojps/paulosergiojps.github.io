@@ -149,7 +149,9 @@
     // ===== Estado =====
     let order = Array.from({length:SONGS.length},(_,i)=>i);
     let cursor=0, currentIndex=null, clipTimer=null;
-    let didHandshake=false;
+    let didHandshake=false;          // já clicou dentro do player uma vez
+    let playerReady=false;           // recebeu onReady do player
+    const pending=[];                // fila de comandos a enviar após ready
 
     const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
     order = shuffle(order);
@@ -160,11 +162,13 @@
     const randomStartGuess=()=>{ const min=10, max=150; return Math.floor(Math.random()*(max-min+1))+min; };
     const secs=(n)=>Math.max(5,Math.min(90,parseInt(n||'20',10)));
 
-    function buildYTUrl(query,start,end){
+    function buildYTUrl(query,start,end,showControls){
       const base='https://www.youtube.com/embed';
       const p=new URLSearchParams({
         listType:'search', list:query,
-        autoplay:'1', controls:'0', rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1',
+        autoplay:'1',
+        controls: showControls ? '1' : '0',
+        rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1',
         enablejsapi:'1',
         origin: location.origin
       });
@@ -174,13 +178,21 @@
     }
 
     function send(cmd,args=[]){
-      try{ iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:cmd,args}), '*'); }catch(e){}
+      if(!playerReady){ pending.push([cmd,args]); return; }
+      try{ iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:cmd,args}), 'https://www.youtube.com'); }catch(e){}
     }
 
-    // Detecta quando o player começa a tocar para esconder o mini-player
+    // Recebe eventos do player (onReady / infoDelivery)
     window.addEventListener('message', (ev)=>{
       let data; try{ data = typeof ev.data==='string' ? JSON.parse(ev.data) : ev.data; } catch(_){ return; }
       if (!data) return;
+
+      if (data.event === 'onReady') {
+        playerReady = true;
+        // drenar fila com pequeno atraso para garantir inicialização
+        setTimeout(()=>{ while(pending.length){ const [f,a]=pending.shift(); send(f,a); } }, 50);
+      }
+
       if (data.event === 'infoDelivery' && data.info && typeof data.info.playerState !== 'undefined') {
         // 1 = playing
         if (data.info.playerState === 1 && iframe.classList.contains('handshake')) {
@@ -190,7 +202,7 @@
           didHandshake = true;
         }
       }
-    });
+    }, { passive: true });
 
     function showMiniPlayer(){
       iframe.classList.remove('hidden');
@@ -205,11 +217,12 @@
 
     function stopPlayback(){
       clearTimeout(clipTimer);
+      playerReady=false; pending.length=0;
       iframe.src='about:blank';
     }
 
     function playSong(index, fresh=true){
-      currentIndex=index;
+      currentIndex=index; playerReady=false; pending.length=0;
       const s=SONGS[currentIndex];
       titleEl.textContent='(oculto)';
       subEl.textContent='—';
@@ -218,25 +231,19 @@
       const start=randomStartEl.checked && fresh ? randomStartGuess() : 0;
       const end=start+clip;
 
+      // no primeiro vídeo, mostramos controles para permitir clique interno
+      const showControls = !didHandshake;
       iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
-      iframe.src = buildYTUrl(buildQuery(s), start, end);
+      iframe.src = buildYTUrl(buildQuery(s), start, end, showControls);
 
-      // Se ainda não fizemos o handshake, mostra o mini-player para um clique dentro do vídeo
-      if (!didHandshake) showMiniPlayer();
-      else hidePlayer();
+      if (!didHandshake) showMiniPlayer(); else hidePlayer();
 
-      // Mantém tentando garantir play/volume por alguns segundos (não atrapalha)
+      // Ajuste de volume somente após onReady
       const vol = Math.max(0, Math.min(100, parseInt(volumeEl.value||'70',10)));
-      let ticks=0;
-      const iv = setInterval(()=>{
-        send('setVolume',[vol]);
-        if (vol===0) send('mute',[]); else send('unMute',[]);
-        send('playVideo',[]);
-        if (++ticks>20) clearInterval(iv);
-      }, 150);
+      if (vol === 0) send('mute', []); else { send('unMute', []); send('setVolume', [vol]); }
 
       clearTimeout(clipTimer);
-      clipTimer=setTimeout(()=>nextSong(), clip*1000+400);
+      clipTimer=setTimeout(()=>nextSong(), clip*1000+500);
     }
 
     function pickAndPlay(){
@@ -259,7 +266,7 @@
     document.getElementById('resumeBtn').addEventListener('click',()=>send('playVideo',[]), { passive: true });
     document.getElementById('volume').addEventListener('change',()=>{
       const vol=Math.max(0,Math.min(100,parseInt(volumeEl.value||'70',10)));
-      send('setVolume',[vol]); if(vol===0) send('mute',[]); else send('unMute',[]);
+      if (vol===0) send('mute', []); else { send('unMute', []); send('setVolume', [vol]); }
     }, { passive: true });
 
     // Render inicial
