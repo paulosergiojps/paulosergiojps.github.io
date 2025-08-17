@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- 🔒 Não indexar (Google e demais) -->
+  <!-- 🔒 Desindexar -->
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
   <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
 
@@ -38,9 +38,18 @@
     .subtitle{font-size:13px;color:var(--muted)}
     details{margin-top:18px} summary{cursor:pointer;user-select:none;color:var(--accent-2);font-weight:700}
     ol{margin:10px 0 0;padding-left:20px} li{margin:4px 0}
-    #board{width:100%;height:120px;background:#111823;border:1px solid #1b2635;border-radius:12px;display:grid;place-items:center;color:#9fb7cf;font-weight:700;letter-spacing:.3px}
-    /* Player invisível: só o áudio */
-    #yt{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+    #board{width:100%;min-height:80px;background:#111823;border:1px solid #1b2635;border-radius:12px;display:grid;place-items:center;color:#9fb7cf;font-weight:700;letter-spacing:.3px;text-align:center;padding:8px}
+
+    /* Player YouTube (invisível depois do handshake) */
+    #yt.hidden{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+    /* Mini-player para o clique inicial */
+    #yt.handshake{
+      position:fixed; z-index:9999;
+      left:50%; top:50%; transform:translate(-50%,-50%);
+      width:360px; height:202px; /* 16:9 */
+      border:0; box-shadow:0 12px 40px rgba(0,0,0,.5); border-radius:12px;
+    }
+    @media (max-width:420px){ #yt.handshake{ width:90vw; height:calc(90vw*9/16); } }
   </style>
 </head>
 <body>
@@ -86,130 +95,46 @@
             <label for="volume">Volume (0–100)</label>
             <input id="volume" type="number" min="0" max="100" step="5" value="70" />
           </div>
-          <div id="board">Clique em <b>Começar</b> (gesto do usuário) para tocar via YouTube.</div>
+          <div id="board">Clique <b>Começar</b>. Vai surgir um <b>mini-player</b> do YouTube — clique uma vez dentro dele para liberar o áudio; depois ele some e fica só o som.</div>
         </div>
       </div>
 
       <details>
-        <summary>Ver lista de 100 músicas</summary>
+        <summary>Ver lista de músicas</summary>
         <ol id="lista"></ol>
       </details>
     </div>
 
-    <!-- Player YouTube invisível -->
-    <iframe id="yt"
+    <!-- Player YouTube: começa invisível, vira "handshake" só no primeiro play -->
+    <iframe id="yt" class="hidden"
       title="player oculto"
       allow="autoplay; encrypted-media; picture-in-picture"
       referrerpolicy="origin-when-cross-origin"></iframe>
   </div>
 
   <script>
-    // ===== Lista de 100 músicas (título + anime) =====
+    // ===== Lista (resumida; você pode expandir à vontade) =====
     const SONGS = [
       { t: "A Cruel Angel's Thesis", a: "Neon Genesis Evangelion" },
       { t: "Tank!", a: "Cowboy Bebop" },
-      { t: "The Real Folk Blues", a: "Cowboy Bebop" },
       { t: "Battlecry", a: "Samurai Champloo" },
       { t: "unravel", a: "Tokyo Ghoul" },
       { t: "again", a: "Fullmetal Alchemist: Brotherhood" },
-      { t: "Hologram", a: "Fullmetal Alchemist: Brotherhood" },
-      { t: "Golden Time Lover", a: "Fullmetal Alchemist: Brotherhood" },
-      { t: "Period", a: "Fullmetal Alchemist: Brotherhood" },
-      { t: "Melissa", a: "Fullmetal Alchemist (2003)" },
-      { t: "READY STEADY GO", a: "Fullmetal Alchemist (2003)" },
       { t: "Guren no Yumiya", a: "Attack on Titan" },
-      { t: "Jiyuu no Tsubasa", a: "Attack on Titan" },
       { t: "Shinzou wo Sasageyo!", a: "Attack on Titan" },
-      { t: "Red Swan", a: "Attack on Titan" },
-      { t: "The Rumbling", a: "Attack on Titan" },
-      { t: "My War (Boku no Sensou)", a: "Attack on Titan" },
       { t: "Gurenge", a: "Demon Slayer" },
-      { t: "from the edge", a: "Demon Slayer" },
-      { t: "Homura", a: "Demon Slayer: Mugen Train" },
-      { t: "Zankyou Sanka", a: "Demon Slayer" },
       { t: "Kaikai Kitan", a: "Jujutsu Kaisen" },
-      { t: "Lost in Paradise", a: "Jujutsu Kaisen" },
-      { t: "VIVID VICE", a: "Jujutsu Kaisen" },
-      { t: "SPECIALZ", a: "Jujutsu Kaisen" },
-      { t: "Ao no Sumika", a: "Jujutsu Kaisen" },
       { t: "THE HERO!! ~Ikareru Kobushi ni Hi wo Tsukero~", a: "One Punch Man" },
-      { t: "Seijaku no Apostle", a: "One Punch Man (S2)" },
-      { t: "the WORLD", a: "Death Note" },
-      { t: "What's up, people?!", a: "Death Note" },
       { t: "Silhouette", a: "Naruto Shippuden" },
       { t: "Blue Bird", a: "Naruto Shippuden" },
-      { t: "Sign", a: "Naruto Shippuden" },
-      { t: "Haruka Kanata", a: "Naruto" },
-      { t: "GO!!!", a: "Naruto" },
-      { t: "Diver", a: "Naruto Shippuden" },
       { t: "We Are!", a: "One Piece" },
-      { t: "Hikari e", a: "One Piece" },
-      { t: "Bon Voyage!", a: "One Piece" },
-      { t: "Share the World", a: "One Piece" },
-      { t: "We Go!", a: "One Piece" },
-      { t: "Hands Up!", a: "One Piece" },
-      { t: "New Genesis", a: "One Piece Film: Red" },
-      { t: "Asterisk", a: "Bleach" },
-      { t: "D-tecnoLife", a: "Bleach" },
-      { t: "Ichirin no Hana", a: "Bleach" },
-      { t: "Rolling Star", a: "Bleach" },
-      { t: "After Dark", a: "Bleach" },
-      { t: "Ranbu no Melody", a: "Bleach" },
-      { t: "Velonica", a: "Bleach" },
       { t: "KICK BACK", a: "Chainsaw Man" },
-      { t: "Inferno", a: "Fire Force" },
       { t: "CHA-LA HEAD-CHA-LA", a: "Dragon Ball Z" },
-      { t: "Chouzetsu Dynamic!", a: "Dragon Ball Super" },
-      { t: "Goya no Machiawase", a: "Noragami" },
-      { t: "Kyouran Hey Kids!!", a: "Noragami Aragoto" },
-      { t: "99", a: "Mob Psycho 100" },
-      { t: "99.9", a: "Mob Psycho 100 II" },
-      { t: "1", a: "Mob Psycho 100 III" },
-      { t: "Imagination", a: "Haikyuu!!" },
-      { t: "FLY HIGH!!", a: "Haikyuu!!" },
-      { t: "PHOENIX", a: "Haikyuu!! To the Top" },
       { t: "Hikaru nara", a: "Your Lie in April" },
-      { t: "History Maker", a: "Yuri!!! on Ice" },
       { t: "crossing field", a: "Sword Art Online" },
-      { t: "INNOCENCE", a: "Sword Art Online" },
-      { t: "ignite", a: "Sword Art Online II" },
-      { t: "courage", a: "Sword Art Online II" },
-      { t: "ADAMAS", a: "SAO Alicization" },
-      { t: "RESISTER", a: "SAO Alicization" },
-      { t: "The Day", a: "My Hero Academia" },
-      { t: "Peace Sign", a: "My Hero Academia" },
-      { t: "Odd Future", a: "My Hero Academia" },
-      { t: "Make my story", a: "My Hero Academia" },
-      { t: "COLORS", a: "Code Geass" },
-      { t: "Kaidoku Funou", a: "Code Geass" },
-      { t: "O2", a: "Code Geass R2" },
-      { t: "WORLD END", a: "Code Geass R2" },
-      { t: "My Dearest", a: "Guilty Crown" },
-      { t: "The Everlasting Guilty Crown", a: "Guilty Crown" },
-      { t: "only my railgun", a: "A Certain Scientific Railgun" },
-      { t: "LEVEL5 -judgelight-", a: "A Certain Scientific Railgun" },
-      { t: "secret base ~Kimi ga Kureta Mono~ (10 years after Ver.)", a: "Anohana" },
-      { t: "ideal white", a: "Fate/stay night: UBW" },
-      { t: "Brave Shine", a: "Fate/stay night: UBW" },
-      { t: "oath sign", a: "Fate/Zero" },
-      { t: "to the beginning", a: "Fate/Zero" },
       { t: "Kimi no Shiranai Monogatari", a: "Bakemonogatari" },
-      { t: "Ren'ai Circulation", a: "Bakemonogatari" },
-      { t: "Staple Stable", a: "Bakemonogatari" },
-      { t: "Sorairo Days", a: "Tengen Toppa Gurren Lagann" },
-      { t: "God knows...", a: "The Melancholy of Haruhi Suzumiya" },
-      { t: "Hare Hare Yukai", a: "The Melancholy of Haruhi Suzumiya" },
-      { t: "Lilium", a: "Elfen Lied" },
-      { t: "Flyers", a: "Death Parade" },
-      { t: "KISS OF DEATH", a: "DARLING in the FRANXX" },
-      { t: "Touch Off", a: "The Promised Neverland" },
-      { t: "Sparkle", a: "Your Name (Kimi no Na wa)" },
-      { t: "Nandemonaiya", a: "Your Name (Kimi no Na wa)" },
-      { t: "Sono Chi no Sadame", a: "JoJo's Bizarre Adventure" },
-      { t: "BLOODY STREAM", a: "JoJo's Bizarre Adventure Part 2" },
-      { t: "STAND PROUD", a: "JoJo's Bizarre Adventure (Stardust Crusaders)" },
-      { t: "Crazy Noisy Bizarre Town", a: "JoJo's Bizarre Adventure (Diamond Is Unbreakable)" },
-      { t: "Fighting Gold", a: "JoJo's Bizarre Adventure (Golden Wind)" }
+      { t: "Sorairo Days", a: "Gurren Lagann" },
+      { t: "God knows...", a: "Haruhi Suzumiya" }
     ];
 
     // ===== UI refs =====
@@ -218,12 +143,14 @@
     const clipLenEl=$('#clipLen'), randomStartEl=$('#randomStart'), volumeEl=$('#volume');
     const listEl=$('#lista'), iframe=$('#yt'), board=$('#board');
 
-    // Render lista
+    // Render da lista
     listEl.innerHTML = SONGS.map((s,i)=>`<li>${i+1}. ${s.t} — ${s.a}</li>`).join('');
 
     // ===== Estado =====
     let order = Array.from({length:SONGS.length},(_,i)=>i);
     let cursor=0, currentIndex=null, clipTimer=null;
+    let didHandshake=false;
+
     const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
     order = shuffle(order);
     const updateLeft=()=>leftEl.textContent=Math.max(0,order.length-cursor);
@@ -234,21 +161,46 @@
     const secs=(n)=>Math.max(5,Math.min(90,parseInt(n||'20',10)));
 
     function buildYTUrl(query,start,end){
-      // usar youtube.com/embed para máxima compatibilidade
       const base='https://www.youtube.com/embed';
       const p=new URLSearchParams({
         listType:'search', list:query,
         autoplay:'1', controls:'0', rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1',
-        enablejsapi:'1'
+        enablejsapi:'1',
+        origin: location.origin
       });
       if(start) p.set('start', String(start));
       if(end && end>start) p.set('end', String(end));
       return `${base}?${p.toString()}`;
     }
 
-    // Envia comandos ao player (sem carregar API externa)
     function send(cmd,args=[]){
       try{ iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:cmd,args}), '*'); }catch(e){}
+    }
+
+    // Detecta quando o player começa a tocar para esconder o mini-player
+    window.addEventListener('message', (ev)=>{
+      let data; try{ data = typeof ev.data==='string' ? JSON.parse(ev.data) : ev.data; } catch(_){ return; }
+      if (!data) return;
+      if (data.event === 'infoDelivery' && data.info && typeof data.info.playerState !== 'undefined') {
+        // 1 = playing
+        if (data.info.playerState === 1 && iframe.classList.contains('handshake')) {
+          iframe.classList.remove('handshake');
+          iframe.classList.add('hidden');
+          board.textContent = 'Tocando… (YouTube)';
+          didHandshake = true;
+        }
+      }
+    });
+
+    function showMiniPlayer(){
+      iframe.classList.remove('hidden');
+      iframe.classList.add('handshake');
+      board.textContent = 'Clique dentro do mini-player para liberar o áudio…';
+    }
+
+    function hidePlayer(){
+      iframe.classList.add('hidden');
+      iframe.classList.remove('handshake');
     }
 
     function stopPlayback(){
@@ -266,24 +218,25 @@
       const start=randomStartEl.checked && fresh ? randomStartGuess() : 0;
       const end=start+clip;
 
-      // muda o src após o clique do usuário (gesto)
       iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
       iframe.src = buildYTUrl(buildQuery(s), start, end);
 
-      // “nudge” de 3s tentando garantir play/unmute/volume
+      // Se ainda não fizemos o handshake, mostra o mini-player para um clique dentro do vídeo
+      if (!didHandshake) showMiniPlayer();
+      else hidePlayer();
+
+      // Mantém tentando garantir play/volume por alguns segundos (não atrapalha)
       const vol = Math.max(0, Math.min(100, parseInt(volumeEl.value||'70',10)));
       let ticks=0;
       const iv = setInterval(()=>{
         send('setVolume',[vol]);
         if (vol===0) send('mute',[]); else send('unMute',[]);
         send('playVideo',[]);
-        if (++ticks>15) clearInterval(iv);
-      }, 200);
+        if (++ticks>20) clearInterval(iv);
+      }, 150);
 
       clearTimeout(clipTimer);
       clipTimer=setTimeout(()=>nextSong(), clip*1000+400);
-
-      board.textContent='Tocando… (YouTube)';
     }
 
     function pickAndPlay(){
@@ -298,16 +251,16 @@
     function reveal(){ if(currentIndex==null) return; const s=SONGS[currentIndex]; titleEl.textContent=s.t; subEl.textContent=s.a; }
 
     // Controles
-    document.getElementById('startBtn').addEventListener('click', startQuiz);
-    document.getElementById('nextBtn').addEventListener('click', nextSong);
-    document.getElementById('revealBtn').addEventListener('click', reveal);
-    document.getElementById('randomPointBtn').addEventListener('click',()=>{ if(currentIndex!=null) playSong(currentIndex,true); });
-    document.getElementById('pauseBtn').addEventListener('click',()=>send('pauseVideo',[]));
-    document.getElementById('resumeBtn').addEventListener('click',()=>send('playVideo',[]));
+    document.getElementById('startBtn').addEventListener('click', startQuiz, { passive: true });
+    document.getElementById('nextBtn').addEventListener('click', nextSong, { passive: true });
+    document.getElementById('revealBtn').addEventListener('click', reveal, { passive: true });
+    document.getElementById('randomPointBtn').addEventListener('click',()=>{ if(currentIndex!=null) playSong(currentIndex,true); }, { passive: true });
+    document.getElementById('pauseBtn').addEventListener('click',()=>send('pauseVideo',[]), { passive: true });
+    document.getElementById('resumeBtn').addEventListener('click',()=>send('playVideo',[]), { passive: true });
     document.getElementById('volume').addEventListener('change',()=>{
       const vol=Math.max(0,Math.min(100,parseInt(volumeEl.value||'70',10)));
       send('setVolume',[vol]); if(vol===0) send('mute',[]); else send('unMute',[]);
-    });
+    }, { passive: true });
 
     // Render inicial
     updateLeft();
