@@ -32,6 +32,7 @@ const els = {
   hideVideo: document.getElementById('hideVideo'),
   shuffleAll: document.getElementById('shuffleAll'),
   fileInput: document.getElementById('fileInput'),
+  btnLoadSongs: document.getElementById('btnLoadSongs'),
   choices: document.getElementById('choices'),
   feedback: document.getElementById('feedback'),
   overlay: document.getElementById('overlay'),
@@ -109,6 +110,7 @@ async function init() {
   // importar
   els.fileInput.addEventListener('change', handleImport, false);
   document.getElementById('btnExport').addEventListener('click', exportJSON);
+  els.btnLoadSongs?.addEventListener('click', loadFromSongsJson);
 
   // botões
   els.btnPlay.addEventListener('click', () => playSnippet());
@@ -296,6 +298,13 @@ function exportJSON() {
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+function loadFromSongsJson() {
+  fetch('songs.json?cachebust=' + Date.now())
+    .then(r => r.json())
+    .then(data => applySongs(data))
+    .catch(() => alert('Não foi possível carregar songs.json.'));
 }
 
 // start app
