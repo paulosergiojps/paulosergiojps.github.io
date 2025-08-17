@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- 🔒 Desindexar -->
+  <!-- 🔒 Desindexar (Google e demais) -->
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
   <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
 
-  <title>Quiz de Músicas de Anime — Só o Som (YouTube)</title>
+  <title>Quiz de Músicas de Anime — Só o Som (YouTube, IDs fixos)</title>
 
   <style>
     :root { --bg:#0b0f14; --panel:#111823; --muted:#8aa0b5; --text:#e6eef6; --accent:#7cc3ff; --accent-2:#9affc3; --danger:#ff7c7c; }
@@ -36,27 +36,21 @@
     .reveal{margin-top:12px;padding:12px;background:#0d1420;border:1px dashed #213149;border-radius:12px;min-height:52px;display:grid;gap:2px}
     .title{font-size:16px;font-weight:700;letter-spacing:.2px}
     .subtitle{font-size:13px;color:var(--muted)}
-    details{margin-top:18px} summary{cursor:pointer;user-select:none;color:var(--accent-2);font-weight:700}
-    ol{margin:10px 0 0;padding-left:20px} li{margin:4px 0}
     #board{width:100%;min-height:80px;background:#111823;border:1px solid #1b2635;border-radius:12px;display:grid;place-items:center;color:#9fb7cf;font-weight:700;letter-spacing:.3px;text-align:center;padding:8px}
-
-    /* Player YouTube (invisível depois do handshake) */
+    /* Player: visível só no 1º clique (handshake) */
     #yt.hidden{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
-    /* Mini-player para o clique inicial */
-    #yt.handshake{
-      position:fixed; z-index:9999;
-      left:50%; top:50%; transform:translate(-50%,-50%);
-      width:360px; height:202px; /* 16:9 */
-      border:0; box-shadow:0 12px 40px rgba(0,0,0,.5); border-radius:12px;
-    }
+    #yt.handshake{position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);width:360px;height:202px;border:0;box-shadow:0 12px 40px rgba(0,0,0,.5);border-radius:12px}
     @media (max-width:420px){ #yt.handshake{ width:90vw; height:calc(90vw*9/16); } }
+    /* Link do vídeo atual */
+    .now {margin:12px 0 0;font-size:14px;color:var(--muted)}
+    .now a{color:var(--accent)}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>Quiz de Músicas de Anime — só o som 🎵</h1>
-      <span class="tag">YouTube (sem bibliotecas externas)</span>
+      <span class="tag">YouTube (IDs/playlist fixos, sem libs)</span>
     </header>
 
     <div class="panel">
@@ -73,7 +67,7 @@
 
           <div class="status">
             <div>Restantes: <strong id="left">0</strong></div>
-            <div>Modo: <strong>youtube</strong></div>
+            <div>Modo: <strong>playlist</strong></div>
           </div>
 
           <div class="reveal" id="revealBox">
@@ -95,17 +89,13 @@
             <label for="volume">Volume (0–100)</label>
             <input id="volume" type="number" min="0" max="100" step="5" value="70" />
           </div>
-          <div id="board">Clique <b>Começar</b>. Vai surgir um <b>mini-player</b> do YouTube — clique uma vez dentro dele para liberar o áudio; depois ele some e fica só o som.</div>
+          <div id="board">Clique <b>Começar</b>. Vai surgir um <b>mini-player</b> — clique dentro dele uma vez para liberar o áudio; depois ele some e fica só o som.</div>
+          <div class="now">Vídeo atual: <span id="nowTitle">—</span> • <a id="nowLink" href="#" target="_blank" rel="noopener">Abrir no YouTube ↗</a></div>
         </div>
       </div>
-
-      <details>
-        <summary>Ver lista de músicas</summary>
-        <ol id="lista"></ol>
-      </details>
     </div>
 
-    <!-- Player YouTube: começa invisível, vira "handshake" só no primeiro play -->
+    <!-- Player YouTube -->
     <iframe id="yt" class="hidden"
       title="player oculto"
       allow="autoplay; encrypted-media; picture-in-picture"
@@ -113,160 +103,154 @@
   </div>
 
   <script>
-    // ===== Lista (resumida; você pode expandir à vontade) =====
-    const SONGS = [
-      { t: "A Cruel Angel's Thesis", a: "Neon Genesis Evangelion" },
-      { t: "Tank!", a: "Cowboy Bebop" },
-      { t: "Battlecry", a: "Samurai Champloo" },
-      { t: "unravel", a: "Tokyo Ghoul" },
-      { t: "again", a: "Fullmetal Alchemist: Brotherhood" },
-      { t: "Guren no Yumiya", a: "Attack on Titan" },
-      { t: "Shinzou wo Sasageyo!", a: "Attack on Titan" },
-      { t: "Gurenge", a: "Demon Slayer" },
-      { t: "Kaikai Kitan", a: "Jujutsu Kaisen" },
-      { t: "THE HERO!! ~Ikareru Kobushi ni Hi wo Tsukero~", a: "One Punch Man" },
-      { t: "Silhouette", a: "Naruto Shippuden" },
-      { t: "Blue Bird", a: "Naruto Shippuden" },
-      { t: "We Are!", a: "One Piece" },
-      { t: "KICK BACK", a: "Chainsaw Man" },
-      { t: "CHA-LA HEAD-CHA-LA", a: "Dragon Ball Z" },
-      { t: "Hikaru nara", a: "Your Lie in April" },
-      { t: "crossing field", a: "Sword Art Online" },
-      { t: "Kimi no Shiranai Monogatari", a: "Bakemonogatari" },
-      { t: "Sorairo Days", a: "Gurren Lagann" },
-      { t: "God knows...", a: "Haruhi Suzumiya" }
+    // ===== Fonte: playlists com 100+ Aberturas (IDs estáveis) =====
+    // Tenta em ordem; se a 1ª estiver indisponível para incorporação, cai na próxima.
+    const PLAYLISTS = [
+      'PLm90DCMQmtlnDzgcGiv7Nn43S8HuB_N2J', // Anime Openings (Top 100)
+      'PLA8t5GzAfuiMFv7jKEYU1YAAea_chEXk9'  // Anime Openings
     ];
 
-    // ===== UI refs =====
+    // ===== UI =====
     const $ = (s)=>document.querySelector(s);
     const leftEl=$('#left'), titleEl=$('#songTitle'), subEl=$('#songSub');
     const clipLenEl=$('#clipLen'), randomStartEl=$('#randomStart'), volumeEl=$('#volume');
-    const listEl=$('#lista'), iframe=$('#yt'), board=$('#board');
-
-    // Render da lista
-    listEl.innerHTML = SONGS.map((s,i)=>`<li>${i+1}. ${s.t} — ${s.a}</li>`).join('');
+    const iframe=$('#yt'), board=$('#board'), nowTitle=$('#nowTitle'), nowLink=$('#nowLink');
 
     // ===== Estado =====
-    let order = Array.from({length:SONGS.length},(_,i)=>i);
-    let cursor=0, currentIndex=null, clipTimer=null;
-    let didHandshake=false;          // já clicou dentro do player uma vez
-    let playerReady=false;           // recebeu onReady do player
-    const pending=[];                // fila de comandos a enviar após ready
+    let currentPlaylistIndex = 0;
+    let totalPlItemsGuess = 100;      // contador “restantes” (estimado)
+    let cursor=0, clipTimer=null, didHandshake=false, playerReady=false;
+    let pending=[], currentVideoId=null, currentVideoTitle='(carregando)';
 
-    const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-    order = shuffle(order);
-    const updateLeft=()=>leftEl.textContent=Math.max(0,order.length-cursor);
-    updateLeft();
-
-    const makeQuery=(s)=>`${(s.t||'').replace(/[^\w\s]/g,' ')} ${(s.a||'').replace(/[^\w\s]/g,' ')} anime opening`;
-    const randomStartGuess=()=>{ const min=10, max=150; return Math.floor(Math.random()*(max-min+1))+min; };
     const secs=(n)=>Math.max(5,Math.min(90,parseInt(n||'20',10)));
+    const randStart=()=>Math.floor(Math.random()*(150-10+1))+10;
 
-    function buildBaseEmbed(showControls){
-      const base='https://www.youtube.com/embed';
-      const p=new URLSearchParams({
-        autoplay:'1', controls: showControls ? '1' : '0', rel:'0', modestbranding:'1', disablekb:'1', iv_load_policy:'3', playsinline:'1',
-        enablejsapi:'1', origin: location.origin
-      });
-      return `${base}?${p.toString()}`;
-    }
-
+    // ==== fila de comandos (só após onReady) ====
     function send(cmd,args=[]){
-      if(!playerReady){ pending.push([cmd,args]); return; }
-      try{ iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:cmd,args}), 'https://www.youtube.com'); }catch(e){}
+      if(!playerReady){ pending.push({cmd,args}); return; }
+      iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:cmd,args}), "https://www.youtube.com");
     }
+    function flush(){ const q=pending.slice(); pending.length=0; q.forEach(x=>send(x.cmd,x.args)); }
 
-    // Recebe eventos do player (onReady / infoDelivery)
+    // ==== eventos do player (via postMessage) ====
     window.addEventListener('message', (ev)=>{
-      let data; try{ data = typeof ev.data==='string' ? JSON.parse(ev.data) : ev.data; } catch(_){ return; }
+      if (!ev || !ev.data) return;
+      let data; try{ data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data; } catch(e){ return; }
       if (!data) return;
 
-      if (data.event === 'onReady') {
-        playerReady = true;
-        setTimeout(()=>{ while(pending.length){ const [f,a]=pending.shift(); send(f,a); } }, 50);
+      // pronto
+      if (data.event === 'onReady') { playerReady=true; const vol = Math.max(0,Math.min(100,parseInt(volumeEl.value||'70',10))); send('setVolume',[vol]); send(vol===0?'mute':'unMute',[]); flush(); }
+
+      // erro (101/150 = incorporação bloqueada; 2 = inválido)
+      if (data.event === 'onError') {
+        // tenta próxima playlist
+        currentPlaylistIndex = (currentPlaylistIndex + 1) % PLAYLISTS.length;
+        loadPlaylistRandom();
       }
 
-      if (data.event === 'infoDelivery' && data.info && typeof data.info.playerState !== 'undefined') {
-        if (data.info.playerState === 1 && iframe.classList.contains('handshake')) {
-          iframe.classList.remove('handshake');
-          iframe.classList.add('hidden');
-          board.textContent = 'Tocando… (YouTube)';
-          didHandshake = true;
+      // info contínua (inclui playerState, videoData etc.)
+      if (data.event === 'infoDelivery' && data.info) {
+        if (typeof data.info.playerState !== 'undefined') {
+          // 1 = tocando: se ainda em handshake, esconde player
+          if (data.info.playerState === 1 && iframe.classList.contains('handshake')) {
+            iframe.classList.remove('handshake'); iframe.classList.add('hidden');
+            board.textContent = 'Tocando… (YouTube)';
+            didHandshake = true;
+          }
+        }
+        if (data.info.videoData) {
+          const v = data.info.videoData;
+          currentVideoId = v.video_id || currentVideoId;
+          currentVideoTitle = v.title || currentVideoTitle;
+          nowTitle.textContent = currentVideoTitle || '(sem título)';
+          nowLink.href = currentVideoId ? `https://www.youtube.com/watch?v=${currentVideoId}` : nowLink.href;
         }
       }
     }, { passive: true });
 
-    function showMiniPlayer(){
-      iframe.classList.remove('hidden');
-      iframe.classList.add('handshake');
-      board.textContent = 'Clique dentro do mini-player para liberar o áudio…';
+    // ==== player helpers ====
+    function stopPlayback(){ clearTimeout(clipTimer); iframe.src='about:blank'; playerReady=false; pending.length=0; }
+    function showMini(){ iframe.classList.remove('hidden'); iframe.classList.add('handshake'); board.textContent='Clique dentro do mini-player para liberar o áudio…'; }
+    function hidePlayer(){ iframe.classList.add('hidden'); iframe.classList.remove('handshake'); }
+
+    function buildEmbedBase(){
+      const base='https://www.youtube.com/embed';
+      const p=new URLSearchParams({
+        enablejsapi:'1', controls:'1', // controles visíveis só no handshake
+        rel:'0', modestbranding:'1', playsinline:'1', origin: location.origin
+      });
+      return `${base}?${p.toString()}`;
     }
 
-    function hidePlayer(){
-      iframe.classList.add('hidden');
-      iframe.classList.remove('handshake');
-    }
+    function loadPlaylistRandom(){
+      const id = PLAYLISTS[currentPlaylistIndex];
+      const startIndex = Math.floor(Math.random()*100); // aleatório dentro do alcance
+      const startSeconds = randomStartEl.checked ? randStart() : 0;
 
-    function stopPlayback(){
-      clearTimeout(clipTimer);
+      // primeiro carregamos um embed “limpo”; ao onReady, mandamos o loadPlaylist
       playerReady=false; pending.length=0;
-      iframe.src='about:blank';
-    }
-
-    function playSong(index, fresh=true){
-      currentIndex=index; playerReady=false; pending.length=0;
-      const s=SONGS[currentIndex];
-      titleEl.textContent='(oculto)';
-      subEl.textContent='—';
-
-      const clip=secs(clipLenEl.value);
-      const start=randomStartEl.checked && fresh ? randomStartGuess() : 0;
-
-      // 1) carrega um embed "limpo" (sem search na URL)
-      const showControls = !didHandshake;
       iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
-      iframe.src = buildBaseEmbed(showControls);
+      iframe.src = buildEmbedBase();
 
-      // 2) quando o player estiver pronto, pedimos para carregar a playlist de busca
-      const q = makeQuery(s);
-      send('loadPlaylist', [{ listType: 'search', list: q }, 0, start]);
-      // volume
-      const vol = Math.max(0, Math.min(100, parseInt(volumeEl.value||'70',10)));
-      if (vol === 0) send('mute', []); else { send('unMute', []); send('setVolume', [vol]); }
-      // força tocar
-      send('playVideo', []);
+      // quando o iframe sinalizar pronto, estes comandos serão executados (flush()):
+      pending.push({
+        cmd:'loadPlaylist',
+        args:[{ listType:'playlist', list:id, index:startIndex, startSeconds:startSeconds }]
+      });
+      // tente dar play e volume algumas vezes após carregar
+      for(let i=0;i<18;i++){
+        pending.push({cmd:'setVolume', args:[parseInt(volumeEl.value||'70',10)]});
+        pending.push({cmd:'unMute', args:[]});
+        pending.push({cmd:'playVideo', args:[]});
+      }
 
-      if (!didHandshake) showMiniPlayer(); else hidePlayer();
+      // handshake: mostra mini-player na 1ª vez
+      if (!didHandshake) showMini(); else hidePlayer();
 
+      // agenda troca automática pelo tamanho do trecho
       clearTimeout(clipTimer);
-      clipTimer=setTimeout(()=>nextSong(), clip*1000+500);
+      clipTimer = setTimeout(nextSong, secs(clipLenEl.value)*1000 + 400);
     }
 
-    function pickAndPlay(){
-      if(cursor>=order.length){ cursor=0; order=shuffle(order); }
-      const idx=order[cursor++]; updateLeft(); playSong(idx,true);
+    function nextSong(){
+      // pega um novo ponto aleatório na própria playlist
+      const t = randomStartEl.checked ? randStart() : 0;
+      send('nextVideo', []);
+      if (t>0) setTimeout(()=>send('seekTo',[t,true]), 400);
+      clearTimeout(clipTimer);
+      clipTimer = setTimeout(nextSong, secs(clipLenEl.value)*1000 + 400);
+      // contador “restantes” (aproximação)
+      leftEl.textContent = Math.max(0, --totalPlItemsGuess);
+      // reset do link até o player enviar o videoData
+      nowTitle.textContent = '(carregando...)';
+      nowLink.href = 'https://www.youtube.com';
     }
 
-    function startQuiz(){
-      cursor=0; order=shuffle(order); updateLeft(); pickAndPlay();
+    function randomPointSame(){
+      // repete a faixa atual em outro ponto
+      const t = randStart();
+      send('seekTo',[t,true]);
+      clearTimeout(clipTimer);
+      clipTimer = setTimeout(nextSong, secs(clipLenEl.value)*1000 + 400);
     }
-    function nextSong(){ stopPlayback(); pickAndPlay(); }
-    function reveal(){ if(currentIndex==null) return; const s=SONGS[currentIndex]; titleEl.textContent=s.t; subEl.textContent=s.a; }
 
-    // Controles
-    document.getElementById('startBtn').addEventListener('click', startQuiz, { passive: true });
-    document.getElementById('nextBtn').addEventListener('click', nextSong, { passive: true });
-    document.getElementById('revealBtn').addEventListener('click', reveal, { passive: true });
-    document.getElementById('randomPointBtn').addEventListener('click',()=>{ if(currentIndex!=null) playSong(currentIndex,true); }, { passive: true });
-    document.getElementById('pauseBtn').addEventListener('click',()=>send('pauseVideo',[]), { passive: true });
-    document.getElementById('resumeBtn').addEventListener('click',()=>send('playVideo',[]), { passive: true });
-    document.getElementById('volume').addEventListener('change',()=>{
+    function reveal(){
+      // Mostra apenas o título que o player reportou (não temos o “anime” via API)
+      titleEl.textContent = currentVideoTitle || '(sem título)';
+      subEl.textContent = '— YouTube playlist';
+    }
+
+    // ==== Controles ====
+    document.getElementById('startBtn').addEventListener('click', ()=>{ totalPlItemsGuess=100; leftEl.textContent=totalPlItemsGuess; loadPlaylistRandom(); }, { passive:true });
+    document.getElementById('nextBtn').addEventListener('click', nextSong, { passive:true });
+    document.getElementById('revealBtn').addEventListener('click', reveal, { passive:true });
+    document.getElementById('randomPointBtn').addEventListener('click', randomPointSame, { passive:true });
+    document.getElementById('pauseBtn').addEventListener('click', ()=>send('pauseVideo',[]), { passive:true });
+    document.getElementById('resumeBtn').addEventListener('click', ()=>send('playVideo',[]), { passive:true });
+    document.getElementById('volume').addEventListener('change', ()=>{
       const vol=Math.max(0,Math.min(100,parseInt(volumeEl.value||'70',10)));
-      if (vol===0) send('mute', []); else { send('unMute', []); send('setVolume', [vol]); }
-    }, { passive: true });
-
-    // Render inicial
-    updateLeft();
+      send('setVolume',[vol]); send(vol===0?'mute':'unMute',[]);
+    }, { passive:true });
   </script>
 </body>
 </html>
