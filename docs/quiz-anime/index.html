@@ -1,256 +1,73 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- 🔒 Desindexar (Google e demais) -->
-  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
-  <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
-
-  <title>Quiz de Músicas de Anime — Só o Som (YouTube, IDs fixos)</title>
-
-  <style>
-    :root { --bg:#0b0f14; --panel:#111823; --muted:#8aa0b5; --text:#e6eef6; --accent:#7cc3ff; --accent-2:#9affc3; --danger:#ff7c7c; }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;background:radial-gradient(1200px 600px at 10% -10%,#142032,transparent),var(--bg);color:var(--text)}
-    .wrap{max-width:960px;margin:32px auto;padding:0 20px}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-    header h1{font-size:clamp(20px,3vw,28px);margin:0;letter-spacing:.2px}
-    header .tag{font-size:12px;color:var(--muted);background:#0e141d;border:1px solid #1b2635;padding:3px 8px;border-radius:999px}
-    .panel{background:linear-gradient(180deg,#0f1622,#0e1520);border:1px solid #1b2635;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .controls{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:720px){.controls{grid-template-columns:1fr 1fr}}
-    .btns{display:flex;flex-wrap:wrap;gap:10px}
-    button{appearance:none;border:1px solid #1b2635;background:#122033;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .05s ease,filter .2s ease,background .2s ease}
-    button:hover{filter:brightness(1.08)} button:active{transform:translateY(1px)}
-    .primary{background:linear-gradient(180deg,#17314f,#132a45);border-color:#1e3a5b}
-    .accent{background:linear-gradient(180deg,#1b3e2b,#153323);border-color:#234a35}
-    .danger{background:linear-gradient(180deg,#3f1b1b,#301414);border-color:#542626}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center}
-    .row label{font-size:13px;color:var(--muted)}
-    input[type="number"]{width:100%;padding:9px 10px;border-radius:10px;border:1px solid #1b2635;background:#0f1722;color:var(--text)}
-    input[type="checkbox"]{transform:translateY(1px)}
-    .status{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
-    .status strong{color:var(--accent)}
-    .reveal{margin-top:12px;padding:12px;background:#0d1420;border:1px dashed #213149;border-radius:12px;min-height:52px;display:grid;gap:2px}
-    .title{font-size:16px;font-weight:700;letter-spacing:.2px}
-    .subtitle{font-size:13px;color:var(--muted)}
-    #board{width:100%;min-height:80px;background:#111823;border:1px solid #1b2635;border-radius:12px;display:grid;place-items:center;color:#9fb7cf;font-weight:700;letter-spacing:.3px;text-align:center;padding:8px}
-    /* Player: visível só no 1º clique (handshake) */
-    #yt.hidden{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
-    #yt.handshake{position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);width:360px;height:202px;border:0;box-shadow:0 12px 40px rgba(0,0,0,.5);border-radius:12px}
-    @media (max-width:420px){ #yt.handshake{ width:90vw; height:calc(90vw*9/16); } }
-    /* Link do vídeo atual */
-    .now {margin:12px 0 0;font-size:14px;color:var(--muted)}
-    .now a{color:var(--accent)}
-  </style>
+  <!-- noindex / nofollow -->
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="googlebot" content="noindex, nofollow" />
+  <title>Anime Music Quiz</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Quiz de Músicas de Anime — só o som 🎵</h1>
-      <span class="tag">YouTube (IDs/playlist fixos, sem libs)</span>
-    </header>
-
-    <div class="panel">
-      <div class="controls">
-        <div>
-          <div class="btns">
-            <button class="primary" id="startBtn">▶️ Começar</button>
-            <button id="pauseBtn">⏸️ Pausar</button>
-            <button id="resumeBtn">▶️ Continuar</button>
-            <button class="accent" id="nextBtn">⏭️ Próxima</button>
-            <button id="revealBtn">👀 Revelar</button>
-            <button class="danger" id="randomPointBtn" title="Novo ponto aleatório na mesma faixa">⤴️ Ponto aleatório</button>
-          </div>
-
-          <div class="status">
-            <div>Restantes: <strong id="left">0</strong></div>
-            <div>Modo: <strong>playlist</strong></div>
-          </div>
-
-          <div class="reveal" id="revealBox">
-            <div class="title" id="songTitle">(oculto)</div>
-            <div class="subtitle" id="songSub">—</div>
-          </div>
-        </div>
-
-        <div>
-          <div class="row">
-            <label for="clipLen">Duração do trecho (segundos)</label>
-            <input id="clipLen" type="number" min="5" max="90" step="1" value="20" />
-          </div>
-          <div class="row">
-            <label for="randomStart">Começar em ponto aleatório</label>
-            <input id="randomStart" type="checkbox" checked />
-          </div>
-          <div class="row">
-            <label for="volume">Volume (0–100)</label>
-            <input id="volume" type="number" min="0" max="100" step="5" value="70" />
-          </div>
-          <div id="board">Clique <b>Começar</b>. Vai surgir um <b>mini-player</b> — clique dentro dele uma vez para liberar o áudio; depois ele some e fica só o som.</div>
-          <div class="now">Vídeo atual: <span id="nowTitle">—</span> • <a id="nowLink" href="#" target="_blank" rel="noopener">Abrir no YouTube ↗</a></div>
-        </div>
-      </div>
+  <header class="top">
+    <h1>Anime Music Quiz</h1>
+    <div class="stats">
+      <span id="round">Rodada 0/0</span>
+      <span id="score">Acertos: 0</span>
+      <span id="pool">Tocáveis: 0</span>
     </div>
+  </header>
 
-    <!-- Player YouTube -->
-    <iframe id="yt" class="hidden"
-      title="player oculto"
-      allow="autoplay; encrypted-media; picture-in-picture"
-      referrerpolicy="origin-when-cross-origin"></iframe>
-  </div>
+  <main>
+    <section class="controls">
+      <button id="btnStart" class="primary">Iniciar (habilitar áudio)</button>
+      <button id="btnPlay" disabled>▶️ Tocar trecho</button>
+      <button id="btnReplay" disabled>🔁 Repetir</button>
+      <button id="btnNext" disabled>⏭️ Próxima</button>
 
-  <script>
-    // ===== Fonte: playlists com 100+ Aberturas (IDs estáveis) =====
-    // Tenta em ordem; se a 1ª estiver indisponível para incorporação, cai na próxima.
-    const PLAYLISTS = [
-      'PLm90DCMQmtlnDzgcGiv7Nn43S8HuB_N2J', // Anime Openings (Top 100)
-      'PLA8t5GzAfuiMFv7jKEYU1YAAea_chEXk9'  // Anime Openings
-    ];
+      <label class="range">
+        Duração do trecho:
+        <input id="snippet" type="range" min="4" max="20" value="12" />
+        <span id="snippetVal">12s</span>
+      </label>
 
-    // ===== UI =====
-    const $ = (s)=>document.querySelector(s);
-    const leftEl=$('#left'), titleEl=$('#songTitle'), subEl=$('#songSub');
-    const clipLenEl=$('#clipLen'), randomStartEl=$('#randomStart'), volumeEl=$('#volume');
-    const iframe=$('#yt'), board=$('#board'), nowTitle=$('#nowTitle'), nowLink=$('#nowLink');
+      <div class="import">
+        <label class="file">
+          Importar lista (.json ou .csv):
+          <input id="fileInput" type="file" accept=".json,.csv" />
+        </label>
+        <button id="btnExport">Exportar JSON</button>
+      </div>
 
-    // ===== Estado =====
-    let currentPlaylistIndex = 0;
-    let totalPlItemsGuess = 100;      // contador “restantes” (estimado)
-    let cursor=0, clipTimer=null, didHandshake=false, playerReady=false;
-    let pending=[], currentVideoId=null, currentVideoTitle='(carregando)';
+      <details>
+        <summary>Opções avançadas</summary>
+        <label><input type="checkbox" id="hideVideo" checked /> Esconder vídeo (somente áudio)</label>
+        <label><input type="checkbox" id="shuffleAll" checked /> Embaralhar ordem</label>
+      </details>
+    </section>
 
-    const secs=(n)=>Math.max(5,Math.min(90,parseInt(n||'20',10)));
-    const randStart=()=>Math.floor(Math.random()*(150-10+1))+10;
+    <section class="player-wrap">
+      <div id="overlay" class="overlay hidden">Tocando trecho… 🎵</div>
+      <div id="player"></div>
+    </section>
 
-    // ==== fila de comandos (só após onReady) ====
-    function send(cmd,args=[]){
-      if(!playerReady){ pending.push({cmd,args}); return; }
-      iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:cmd,args}), "https://www.youtube.com");
-    }
-    function flush(){ const q=pending.slice(); pending.length=0; q.forEach(x=>send(x.cmd,x.args)); }
+    <section class="quiz">
+      <h2 id="question">Qual é a música/anime?</h2>
+      <div id="choices" class="choices"></div>
+      <div id="feedback" class="feedback"></div>
+    </section>
+  </main>
 
-    // ==== eventos do player (via postMessage) ====
-    window.addEventListener('message', (ev)=>{
-      if (!ev || !ev.data) return;
-      let data; try{ data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data; } catch(e){ return; }
-      if (!data) return;
+  <footer>
+    <small>
+      Dica: você pode editar <code>songs.json</code> (IDs/links, alternativas, resposta correta) ou importar um arquivo atualizado.
+      Este projeto usa a <strong>YouTube IFrame API</strong> e respeita as políticas de reprodução.
+    </small>
+  </footer>
 
-      // pronto
-      if (data.event === 'onReady') { playerReady=true; const vol = Math.max(0,Math.min(100,parseInt(volumeEl.value||'70',10))); send('setVolume',[vol]); send(vol===0?'mute':'unMute',[]); flush(); }
-
-      // erro (101/150 = incorporação bloqueada; 2 = inválido)
-      if (data.event === 'onError') {
-        // tenta próxima playlist
-        currentPlaylistIndex = (currentPlaylistIndex + 1) % PLAYLISTS.length;
-        loadPlaylistRandom();
-      }
-
-      // info contínua (inclui playerState, videoData etc.)
-      if (data.event === 'infoDelivery' && data.info) {
-        if (typeof data.info.playerState !== 'undefined') {
-          // 1 = tocando: se ainda em handshake, esconde player
-          if (data.info.playerState === 1 && iframe.classList.contains('handshake')) {
-            iframe.classList.remove('handshake'); iframe.classList.add('hidden');
-            board.textContent = 'Tocando… (YouTube)';
-            didHandshake = true;
-          }
-        }
-        if (data.info.videoData) {
-          const v = data.info.videoData;
-          currentVideoId = v.video_id || currentVideoId;
-          currentVideoTitle = v.title || currentVideoTitle;
-          nowTitle.textContent = currentVideoTitle || '(sem título)';
-          nowLink.href = currentVideoId ? `https://www.youtube.com/watch?v=${currentVideoId}` : nowLink.href;
-        }
-      }
-    }, { passive: true });
-
-    // ==== player helpers ====
-    function stopPlayback(){ clearTimeout(clipTimer); iframe.src='about:blank'; playerReady=false; pending.length=0; }
-    function showMini(){ iframe.classList.remove('hidden'); iframe.classList.add('handshake'); board.textContent='Clique dentro do mini-player para liberar o áudio…'; }
-    function hidePlayer(){ iframe.classList.add('hidden'); iframe.classList.remove('handshake'); }
-
-    function buildEmbedBase(){
-      const base='https://www.youtube.com/embed';
-      const p=new URLSearchParams({
-        enablejsapi:'1', controls:'1', // controles visíveis só no handshake
-        rel:'0', modestbranding:'1', playsinline:'1', origin: location.origin
-      });
-      return `${base}?${p.toString()}`;
-    }
-
-    function loadPlaylistRandom(){
-      const id = PLAYLISTS[currentPlaylistIndex];
-      const startIndex = Math.floor(Math.random()*100); // aleatório dentro do alcance
-      const startSeconds = randomStartEl.checked ? randStart() : 0;
-
-      // primeiro carregamos um embed “limpo”; ao onReady, mandamos o loadPlaylist
-      playerReady=false; pending.length=0;
-      iframe.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
-      iframe.src = buildEmbedBase();
-
-      // quando o iframe sinalizar pronto, estes comandos serão executados (flush()):
-      pending.push({
-        cmd:'loadPlaylist',
-        args:[{ listType:'playlist', list:id, index:startIndex, startSeconds:startSeconds }]
-      });
-      // tente dar play e volume algumas vezes após carregar
-      for(let i=0;i<18;i++){
-        pending.push({cmd:'setVolume', args:[parseInt(volumeEl.value||'70',10)]});
-        pending.push({cmd:'unMute', args:[]});
-        pending.push({cmd:'playVideo', args:[]});
-      }
-
-      // handshake: mostra mini-player na 1ª vez
-      if (!didHandshake) showMini(); else hidePlayer();
-
-      // agenda troca automática pelo tamanho do trecho
-      clearTimeout(clipTimer);
-      clipTimer = setTimeout(nextSong, secs(clipLenEl.value)*1000 + 400);
-    }
-
-    function nextSong(){
-      // pega um novo ponto aleatório na própria playlist
-      const t = randomStartEl.checked ? randStart() : 0;
-      send('nextVideo', []);
-      if (t>0) setTimeout(()=>send('seekTo',[t,true]), 400);
-      clearTimeout(clipTimer);
-      clipTimer = setTimeout(nextSong, secs(clipLenEl.value)*1000 + 400);
-      // contador “restantes” (aproximação)
-      leftEl.textContent = Math.max(0, --totalPlItemsGuess);
-      // reset do link até o player enviar o videoData
-      nowTitle.textContent = '(carregando...)';
-      nowLink.href = 'https://www.youtube.com';
-    }
-
-    function randomPointSame(){
-      // repete a faixa atual em outro ponto
-      const t = randStart();
-      send('seekTo',[t,true]);
-      clearTimeout(clipTimer);
-      clipTimer = setTimeout(nextSong, secs(clipLenEl.value)*1000 + 400);
-    }
-
-    function reveal(){
-      // Mostra apenas o título que o player reportou (não temos o “anime” via API)
-      titleEl.textContent = currentVideoTitle || '(sem título)';
-      subEl.textContent = '— YouTube playlist';
-    }
-
-    // ==== Controles ====
-    document.getElementById('startBtn').addEventListener('click', ()=>{ totalPlItemsGuess=100; leftEl.textContent=totalPlItemsGuess; loadPlaylistRandom(); }, { passive:true });
-    document.getElementById('nextBtn').addEventListener('click', nextSong, { passive:true });
-    document.getElementById('revealBtn').addEventListener('click', reveal, { passive:true });
-    document.getElementById('randomPointBtn').addEventListener('click', randomPointSame, { passive:true });
-    document.getElementById('pauseBtn').addEventListener('click', ()=>send('pauseVideo',[]), { passive:true });
-    document.getElementById('resumeBtn').addEventListener('click', ()=>send('playVideo',[]), { passive:true });
-    document.getElementById('volume').addEventListener('change', ()=>{
-      const vol=Math.max(0,Math.min(100,parseInt(volumeEl.value||'70',10)));
-      send('setVolume',[vol]); send(vol===0?'mute':'unMute',[]);
-    }, { passive:true });
-  </script>
+  <!-- YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="app.js"></script>
 </body>
 </html>
