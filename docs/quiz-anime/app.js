@@ -1,18 +1,14 @@
----
-
-## `app.js`
-
-```js
+'use strict';
 /*
-  Anime Music Quiz — lógica principal
-  - Carrega songs.json
-  - Permite importar JSON/CSV
-  - Usa YouTube IFrame API para tocar trechos aleatórios
-  - Gera alternativas automaticamente se não vierem no arquivo
+  Anime Music Quiz - main logic (compat)
+  - Loads songs.json
+  - Imports JSON/CSV
+  - Uses YouTube IFrame API to play random snippets
+  - Auto-generates choices if missing
 */
 
 let SONGS = [];
-let playable = []; // somente com videoId válido
+let playable = []; // only with valid videoId
 let currentIdx = -1;
 let score = 0;
 let round = 0;
@@ -38,93 +34,97 @@ const els = {
   overlay: document.getElementById('overlay'),
 };
 
-// Utilidades
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const shuffle = (arr) => arr.map(v=>[Math.random(), v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
-const byIdFromUrl = (url='') => {
+// utils
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function shuffle(arr){ return arr.map(function(v){return [Math.random(), v];}).sort(function(a,b){return a[0]-b[0];}).map(function(x){return x[1];}); }
+function byIdFromUrl(url){
   if (!url) return '';
   try {
-    const u = new URL(url);
-    if (u.hostname.includes('youtu.be')) return u.pathname.replace('/', '');
-    const v = u.searchParams.get('v');
+    var u = new URL(url);
+    if (u.hostname.indexOf('youtu.be') !== -1) return u.pathname.replace('/', '');
+    var v = u.searchParams.get('v');
     return v || '';
-  } catch { return ''; }
-};
-
-function updateHUD() {
-  els.round.textContent = `Rodada ${round}/${playable.length}`;
-  els.score.textContent = `Acertos: ${score}`;
-  els.pool.textContent = `Tocáveis: ${playable.length}/${SONGS.length}`;
+  } catch(e){ return ''; }
 }
 
-function setButtonsPlayingState(isPlaying) {
+function updateHUD(){
+  els.round.textContent = 'Rodada ' + round + '/' + playable.length;
+  els.score.textContent = 'Acertos: ' + score;
+  els.pool.textContent = 'Tocáveis: ' + playable.length + '/' + SONGS.length;
+}
+
+function setButtonsPlayingState(isPlaying){
   els.btnPlay.disabled = !startUnlocked || isPlaying;
   els.btnReplay.disabled = !startUnlocked || isPlaying;
   els.btnNext.disabled = !startUnlocked || isPlaying;
 }
 
-function setOverlay(show) {
-  els.overlay.classList.toggle('hidden', !show);
+function setOverlay(show){
+  if (!els.overlay) return;
+  if (show) els.overlay.classList.remove('hidden'); else els.overlay.classList.add('hidden');
 }
 
-// YouTube IFrame API hook global
-window.onYouTubeIframeAPIReady = function() {
+// YouTube IFrame API hook (global)
+window.onYouTubeIframeAPIReady = function(){
   player = new YT.Player('player', {
     height: '360', width: '640',
     playerVars: { controls: 0, modestbranding: 1, rel: 0, disablekb: 1, fs: 0, playsinline: 1 },
     events: {
-      onReady: () => {
+      onReady: function(){
         els.btnStart.disabled = false;
       },
-      onStateChange: (e) => {
-        // 0=ended, 1=playing, 2=paused
-        // Nada extra por enquanto
-      }
+      onStateChange: function(e){ /* noop */ }
     }
   });
 };
 
-async function init() {
-  // preferir esconder vídeo
-  document.body.classList.toggle('hide-video', els.hideVideo.checked);
-  els.hideVideo.addEventListener('change', () => {
-    document.body.classList.toggle('hide-video', els.hideVideo.checked);
-  });
+async function init(){
+  // hide video by default
+  if (els.hideVideo) {
+    document.body.classList.toggle('hide-video', !!els.hideVideo.checked);
+    els.hideVideo.addEventListener('change', function(){
+      document.body.classList.toggle('hide-video', !!els.hideVideo.checked);
+    });
+  }
 
   // slider
-  els.snippet.addEventListener('input', () => {
+  els.snippet.addEventListener('input', function(){
     snippetSec = Number(els.snippet.value);
-    els.snippetVal.textContent = `${snippetSec}s`;
+    els.snippetVal.textContent = snippetSec + 's';
   });
 
-  // start (liberar áudio)
-  els.btnStart.addEventListener('click', async () => {
+  // start (unlock audio)
+  els.btnStart.addEventListener('click', async function(){
     startUnlocked = true;
     els.btnPlay.disabled = false;
     els.btnNext.disabled = false;
-    els.btnStart.textContent = '✅ Áudio habilitado';
+    els.btnStart.textContent = 'Audio habilitado';
     els.btnStart.disabled = true;
     if (currentIdx === -1 && playable.length) nextRound();
   });
 
-  // importar
+  // import
   els.fileInput.addEventListener('change', handleImport, false);
   document.getElementById('btnExport').addEventListener('click', exportJSON);
-  els.btnLoadSongs?.addEventListener('click', loadFromSongsJson);
+  if (els.btnLoadSongs) els.btnLoadSongs.addEventListener('click', loadFromSongsJson);
 
-  // botões
-  els.btnPlay.addEventListener('click', () => playSnippet());
-  els.btnReplay.addEventListener('click', () => replaySnippet());
-  els.btnNext.addEventListener('click', () => nextRound());
+  // buttons
+  els.btnPlay.addEventListener('click', function(){ playSnippet(); });
+  els.btnReplay.addEventListener('click', function(){ replaySnippet(); });
+  els.btnNext.addEventListener('click', function(){ nextRound(); });
 
-  // carregar lista padrão
-  const base = await fetch('songs.json').then(r => r.json()).catch(()=>[]);
-  applySongs(base);
+  // load default list
+  try {
+    const base = await fetch('songs.json?_=' + Date.now()).then(function(r){return r.json();});
+    applySongs(base);
+  } catch(e){
+    console.warn('songs.json not found or invalid, starting with empty list');
+    applySongs([]);
+  }
 }
 
-function normalizeSongs(arr) {
-  // normaliza estrutura e gera alternativas se faltarem
-  return arr.map((s, i) => {
+function normalizeSongs(arr){
+  return (arr || []).map(function(s, i){
     const pos = Number(s.position || i + 1);
     const title = String(s.title || '').trim();
     let videoId = String(s.videoId || '').trim();
@@ -133,36 +133,33 @@ function normalizeSongs(arr) {
     let choices = Array.isArray(s.choices) ? s.choices.filter(Boolean).map(String) : [];
     const correct = String(s.correct || title);
 
-    return { position: pos, title, videoId, youtubeUrl: s.youtubeUrl || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : ''), choices, correct };
+    return { position: pos, title: title, videoId: videoId, youtubeUrl: s.youtubeUrl || (videoId ? ('https://www.youtube.com/watch?v=' + videoId) : ''), choices: choices, correct: correct };
   });
 }
 
-function ensureChoices(songs) {
-  // se não houver escolhas, gerar a partir do pool de títulos
-  const titles = songs.map(s=>s.title);
+function ensureChoices(songs){
+  const titles = songs.map(function(s){ return s.title; });
   const total = songs.length;
-  for (let i=0; i<total; i++) {
+  for (let i=0; i<total; i++){
     const s = songs[i];
     if (!s.title) continue;
-    if (!Array.isArray(s.choices) || s.choices.length < 4) {
-      // pegar 3 títulos distintos e adicionar o correto
-      const pool = shuffle(titles.filter(t => t && t !== s.title)).slice(0, 3);
-      s.choices = shuffle([s.title, ...pool]);
+    if (!Array.isArray(s.choices) || s.choices.length < 4){
+      const pool = shuffle(titles.filter(function(t){ return t && t !== s.title; })).slice(0, 3);
+      s.choices = shuffle([s.title].concat(pool));
     } else {
-      // garantir que o correto está presente
-      if (!s.choices.includes(s.correct)) {
-        s.choices = shuffle([s.correct, ...shuffle(s.choices).slice(0, Math.max(0, 3))]);
+      if (s.correct && s.choices.indexOf(s.correct) === -1){
+        s.choices = shuffle([s.correct].concat(shuffle(s.choices).slice(0, Math.max(0, 3))));
       }
     }
   }
   return songs;
 }
 
-function applySongs(arr) {
+function applySongs(arr){
   SONGS = ensureChoices(normalizeSongs(arr));
-  // filtrar somente as que têm videoId válido
-  playable = SONGS.filter(s => s.videoId && /^[-_a-zA-Z0-9]{6,}$/.test(s.videoId));
-  if (els.shuffleAll.checked) playable = shuffle(playable);
+  // only with plausible YouTube IDs
+  playable = SONGS.filter(function(s){ return s.videoId && /^[-_a-zA-Z0-9]{6,}$/.test(s.videoId); });
+  if (els.shuffleAll && els.shuffleAll.checked) playable = shuffle(playable);
   currentIdx = -1; score = 0; round = 0;
   updateHUD();
   els.btnPlay.disabled = !startUnlocked;
@@ -170,28 +167,26 @@ function applySongs(arr) {
   els.btnNext.disabled = !startUnlocked;
 }
 
-async function playSnippet(replay=false) {
+async function playSnippet(){
   if (!startUnlocked || !playable.length) return;
   const item = playable[currentIdx];
-  if (!item) return;
+  if (!item || !player || !player.loadVideoById) return;
 
   clearTimeout(stopTimer);
   setButtonsPlayingState(true);
   setOverlay(true);
 
-  // pegar duração e escolher início aleatório
-  // se duração desconhecida, carrega e espera onReady interno do player
-  const playNow = () => {
+  const playNow = function(){
     try {
-      const dur = Math.floor(player.getDuration?.() || 0);
+      const dur = (player && typeof player.getDuration === 'function') ? Math.floor(player.getDuration() || 0) : 0;
       const safe = dur > (snippetSec + 2) ? dur - snippetSec - 1 : 0;
       const start = safe > 0 ? Math.floor(Math.random() * safe) + 1 : 0;
       player.loadVideoById({ videoId: item.videoId, startSeconds: start, suggestedQuality: 'small' });
-      player.unMute?.();
-      player.playVideo?.();
+      if (player.unMute) player.unMute();
+      if (player.playVideo) player.playVideo();
 
-      stopTimer = setTimeout(() => {
-        player.pauseVideo?.();
+      stopTimer = setTimeout(function(){
+        if (player.pauseVideo) player.pauseVideo();
         setButtonsPlayingState(false);
         setOverlay(false);
       }, snippetSec * 1000);
@@ -202,14 +197,13 @@ async function playSnippet(replay=false) {
     }
   };
 
-  // Em alguns casos, o player precisa de um pequeno delay
   await sleep(100);
   playNow();
 }
 
-function replaySnippet() { playSnippet(true); }
+function replaySnippet(){ playSnippet(); }
 
-function nextRound() {
+function nextRound(){
   if (!playable.length) return;
   clearTimeout(stopTimer);
   els.feedback.textContent = '';
@@ -220,77 +214,75 @@ function nextRound() {
   updateHUD();
 
   const item = playable[currentIdx];
-  // render alternativas
-  item.choices.forEach((label) => {
+  (item.choices || []).forEach(function(label){
     const btn = document.createElement('button');
     btn.className = 'choice';
     btn.textContent = label;
-    btn.addEventListener('click', () => onAnswer(btn, label, item));
+    btn.addEventListener('click', function(){ onAnswer(btn, label, item); });
     els.choices.appendChild(btn);
   });
 
-  // preparar reprodução
   els.btnReplay.disabled = false;
   els.btnPlay.disabled = !startUnlocked;
   els.btnNext.disabled = false;
 }
 
-function onAnswer(btn, label, item) {
-  const correct = (label === item.correct) || (label === item.title);
-  if (correct) {
+function onAnswer(btn, label, item){
+  const isCorrect = (label === (item.correct || '')) || (label === (item.title || ''));
+  if (isCorrect){
     btn.classList.add('correct');
-    els.feedback.textContent = '✅ Acertou!';
+    els.feedback.textContent = 'Acertou!';
     score += 1;
   } else {
     btn.classList.add('wrong');
-    els.feedback.textContent = `❌ Errou. Resposta: ${item.correct || item.title}`;
+    els.feedback.textContent = 'Errado. Resposta: ' + (item.correct || item.title || '');
   }
   updateHUD();
 
-  // desabilitar botões de escolha
-  [...els.choices.children].forEach(b => b.disabled = true);
+  Array.prototype.forEach.call(els.choices.children, function(b){ b.disabled = true; });
 }
 
-async function handleImport(e) {
-  const file = e.target.files?.[0];
+async function handleImport(e){
+  const file = (e.target && e.target.files && e.target.files[0]) ? e.target.files[0] : null;
   if (!file) return;
   const text = await file.text();
   let data = [];
-  if (file.name.endsWith('.json')) {
+  if (file.name.toLowerCase().endsWith('.json')){
     data = JSON.parse(text);
-  } else if (file.name.endsWith('.csv')) {
+  } else if (file.name.toLowerCase().endsWith('.csv')){
     data = parseCSV(text);
   }
   applySongs(data);
 }
 
-function parseCSV(csv) {
-  // CSV esperado: position,title,youtubeUrl,videoId,choices,correct
-  // choices pode vir separada por | (pipe)
-  const lines = csv.split(/\r?\n/).filter(Boolean);
-  const hdr = lines.shift().split(',').map(h=>h.trim());
+function parseCSV(csv){
+  const lines = csv.split(/
+?
+/).filter(Boolean);
+  if (!lines.length) return [];
+  const hdr = lines.shift().split(',').map(function(h){ return h.trim(); });
   const idx = {
-    pos: hdr.findIndex(h=>/position/i.test(h)),
-    title: hdr.findIndex(h=>/title/i.test(h)),
-    url: hdr.findIndex(h=>/youtubeurl|url/i.test(h)),
-    vid: hdr.findIndex(h=>/videoid|id/i.test(h)),
-    choices: hdr.findIndex(h=>/choices|alternativas/i.test(h)),
-    correct: hdr.findIndex(h=>/correct|resposta/i.test(h)),
+    pos: hdr.findIndex(function(h){return /position/i.test(h);}),
+    title: hdr.findIndex(function(h){return /title/i.test(h);}),
+    url: hdr.findIndex(function(h){return /youtubeurl|url/i.test(h);}),
+    vid: hdr.findIndex(function(h){return /videoid|id/i.test(h);}),
+    choices: hdr.findIndex(function(h){return /choices|alternativas/i.test(h);}),
+    correct: hdr.findIndex(function(h){return /correct|resposta/i.test(h);}),
   };
-  return lines.map((ln, i) => {
+  return lines.map(function(ln, i){
     const cols = ln.split(',');
-    const c = (k) => idx[k] >= 0 ? (cols[idx[k]] || '').trim() : '';
+    const c = function(k){ return idx[k] >= 0 ? (cols[idx[k]] || '').trim() : ''; };
     const title = c('title');
     const youtubeUrl = c('url');
     const videoId = c('vid') || byIdFromUrl(youtubeUrl);
-    const choices = (c('choices') || '').split('|').map(s=>s.trim()).filter(Boolean);
+    const choices = (c('choices') || '').split('|').map(function(s){return s.trim();}).filter(Boolean);
     const correct = c('correct') || title;
     const position = Number(c('pos') || i+1);
-    return { position, title, youtubeUrl, videoId, choices, correct };
+    return { position: position, title: title, youtubeUrl: youtubeUrl, videoId: videoId, choices: choices, correct: correct };
   });
 }
 
-function exportJSON() {
+function exportJSON(){
   const blob = new Blob([JSON.stringify(SONGS, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -300,11 +292,11 @@ function exportJSON() {
   a.remove();
 }
 
-function loadFromSongsJson() {
-  fetch('songs.json?cachebust=' + Date.now())
-    .then(r => r.json())
-    .then(data => applySongs(data))
-    .catch(() => alert('Não foi possível carregar songs.json.'));
+function loadFromSongsJson(){
+  fetch('songs.json?_=' + Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(data){ applySongs(data); })
+    .catch(function(){ alert('Não foi possível carregar songs.json.'); });
 }
 
 // start app
